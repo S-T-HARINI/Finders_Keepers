@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/item_model.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../../core/services/local_cache_service.dart';
+import 'firestore_item_repository.dart';
 
 abstract class ItemRepository {
   Stream<List<ItemModel>> watchItems({ItemType? type, String? category, String? query});
@@ -13,19 +16,39 @@ abstract class ItemRepository {
   Future<List<ItemModel>> getClaimedItemsByUser(String uid);
 }
 
-/// Reactive in-memory implementation seeded with initial mock data
-/// for seamless testing, development, and offline fallback.
+/// Reactive persistent implementation seeded with initial campus data
+/// and durable local storage to survive process death and app restarts.
 class MockItemRepository implements ItemRepository {
-  MockItemRepository() {
+  MockItemRepository({LocalCacheService? cacheService}) : _cacheService = cacheService {
     _items.addAll(MockItems.all);
-    _broadcast();
+    _initFromCache();
   }
 
+  final LocalCacheService? _cacheService;
   final List<ItemModel> _items = [];
   final _controller = StreamController<List<ItemModel>>.broadcast();
 
+  Future<void> _initFromCache() async {
+    if (_cacheService != null) {
+      final cached = await _cacheService.loadItems();
+      if (cached.isNotEmpty) {
+        // Merge cached items, preserving newly added reports while keeping base mocks
+        final Map<String, ItemModel> itemMap = {
+          for (final item in MockItems.all) item.id: item,
+        };
+        for (final item in cached) {
+          itemMap[item.id] = item;
+        }
+        _items.clear();
+        _items.addAll(itemMap.values);
+      }
+    }
+    _broadcast();
+  }
+
   void _broadcast() {
     _controller.add(List.unmodifiable(_items));
+    _cacheService?.saveItems(_items);
   }
 
   @override
@@ -50,7 +73,7 @@ class MockItemRepository implements ItemRepository {
 
   @override
   Future<String> createItem(ItemModel item) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     final String newItemId = item.id.isNotEmpty ? item.id : 'item_${DateTime.now().millisecondsSinceEpoch}';
     final savedItem = item.copyWith(id: newItemId);
     _items.insert(0, savedItem);
@@ -60,7 +83,7 @@ class MockItemRepository implements ItemRepository {
 
   @override
   Future<void> updateItem(ItemModel item) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     final index = _items.indexWhere((i) => i.id == item.id);
     if (index != -1) {
       _items[index] = item;
@@ -70,25 +93,25 @@ class MockItemRepository implements ItemRepository {
 
   @override
   Future<void> deleteItem(String id) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     _items.removeWhere((i) => i.id == id);
     _broadcast();
   }
 
   @override
   Future<List<ItemModel>> getItemsByUser(String uid) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     return _items.where((i) => i.reportedByUid == uid).toList();
   }
 
   @override
   Future<List<ItemModel>> getClaimedItemsByUser(String uid) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     return _items.where((i) => i.claimedByUid == uid).toList();
   }
 
   List<ItemModel> _filterList(List<ItemModel> list, ItemType? type, String? category, String? query) {
-    var result = list;
+    var result = List<ItemModel>.from(list);
     if (type != null) {
       result = result.where((item) => item.type == type).toList();
     }
@@ -112,12 +135,14 @@ class MockItemRepository implements ItemRepository {
   }
 }
 
-/// Provider for ItemRepository
+/// Provider for ItemRepository with automatic dual-mode resolution
 final itemRepositoryProvider = Provider<ItemRepository>((ref) {
-  final repo = MockItemRepository();
-  ref.onDispose(() {
-    repo.dispose();
-  });
+  if (FirebaseService.isFirebaseInitialized) {
+    return FirestoreItemRepository();
+  }
+  final cache = ref.watch(localCacheServiceProvider);
+  final repo = MockItemRepository(cacheService: cache);
+  ref.onDispose(repo.dispose);
   return repo;
 });
 

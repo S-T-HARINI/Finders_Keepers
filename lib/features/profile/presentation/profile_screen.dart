@@ -5,6 +5,8 @@ import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../../core/services/sync_queue_service.dart';
 import '../../../core/widgets/cs_button.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/user_model.dart';
@@ -274,6 +276,12 @@ class ProfileScreen extends ConsumerWidget {
             subtitle: 'Campus Signal (Warm Ivory)',
             onTap: () {},
           ),
+          _SettingsItem(
+            icon: Icons.cloud_sync_outlined,
+            label: 'Cloud & Offline Sync',
+            subtitle: FirebaseService.isFirebaseInitialized ? 'Connected to Firebase' : 'Durable Local Persistence (Active)',
+            onTap: () => _showSyncStatus(context, ref),
+          ),
 
           // ── Legal section ─────────────────────────────────────────────────
           const SizedBox(height: CSSpacing.sm),
@@ -344,6 +352,113 @@ class ProfileScreen extends ConsumerWidget {
           'Finders Keepers — A production-quality campus lost-and-found mobile platform built with Flutter and the Campus Signal design system.',
         ),
       ],
+    );
+  }
+
+  void _showSyncStatus(BuildContext context, WidgetRef ref) {
+    final syncQueue = ref.read(syncQueueServiceProvider);
+    final operations = syncQueue.currentQueue;
+    final isCloud = FirebaseService.isFirebaseInitialized;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: CSColors.bgPaper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(CSSpacing.radiusCard)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.all(CSSpacing.pageHorizontal),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Sync & Storage Status', style: CSTypography.headlineSmall.copyWith(fontSize: 20)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: CSSpacing.spacing8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: CSColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(CSSpacing.radiusCard),
+                  border: Border.all(color: CSColors.dividerLight),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isCloud ? Icons.cloud_done_outlined : Icons.offline_pin_outlined,
+                      color: isCloud ? CSColors.accentLimeDark : CSColors.warningOrange,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isCloud ? 'Firebase Cloud Mode' : 'Durable Local Mode',
+                            style: CSTypography.labelMedium.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            isCloud
+                                ? 'Reports, claims, and media sync to Firestore and Storage.'
+                                : 'All reports, claims, and drafts are durably stored locally across cold app restarts.',
+                            style: CSTypography.caption.copyWith(color: CSColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: CSSpacing.spacing16),
+              Text(
+                'OFFLINE SYNC QUEUE (${operations.length} OPERATIONS)',
+                style: CSTypography.labelSmall.copyWith(color: CSColors.textMuted, letterSpacing: 0.8),
+              ),
+              const SizedBox(height: 8),
+              if (operations.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(
+                      'No pending sync operations. Everything is current.',
+                      style: CSTypography.bodySmall.copyWith(color: CSColors.textMuted),
+                    ),
+                  ),
+                )
+              else
+                ...operations.take(4).map((op) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(op.actionType, style: CSTypography.labelSmall),
+                        Text(
+                          op.status.name.toUpperCase(),
+                          style: CSTypography.caption.copyWith(
+                            color: op.status == SyncStatus.synced ? CSColors.accentLimeDark : CSColors.warningOrange,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: CSSpacing.spacing16),
+            ],
+          ),
+        );
+      },
     );
   }
 }

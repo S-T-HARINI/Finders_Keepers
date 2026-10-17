@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Item photos folder (lost & found public display)
+    match /item_images/{imageId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && isImage() && isUnder5MB();
+    }
+
+    // Evidence photos folder (private claim verification)
+    match /claim_evidence/{claimId}/{imageId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImage() && isUnder5MB();
+    }
+
+    // User profile pictures
+    match /user_avatars/{userId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId && isImage() && isUnder5MB();
+    }
+  }
+}

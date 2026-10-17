@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'firebase_service.dart';
+import 'firebase_storage_service.dart';
 
 abstract class StorageService {
   Future<String?> pickImage({bool fromCamera = false});
@@ -30,11 +32,14 @@ class LocalStorageService implements StorageService {
   @override
   Future<String> uploadImage({required String localPath, required String folder}) async {
     // When Firebase Storage is unconfigured, keep local path or generate mock URL
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     return localPath;
   }
 }
 
 final storageServiceProvider = Provider<StorageService>((ref) {
+  if (FirebaseService.isFirebaseInitialized) {
+    return FirebaseStorageService();
+  }
   return LocalStorageService();
 });

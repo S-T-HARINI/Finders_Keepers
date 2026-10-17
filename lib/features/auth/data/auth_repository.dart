@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../../core/services/local_cache_service.dart';
+import 'firebase_auth_repository.dart';
 import 'user_model.dart';
 
 abstract class AuthRepository {
@@ -17,16 +20,37 @@ abstract class AuthRepository {
   Future<void> signOut();
 }
 
-/// In-memory & testable AuthRepository implementation that supports
-/// realistic auth state changes and offline development without requiring
-/// a live Firebase project connection during initial setup.
+/// Durable local AuthRepository implementation that supports
+/// realistic auth state changes, local session persistence across restarts,
+/// and offline campus use without requiring a live cloud project.
 class MockAuthRepository implements AuthRepository {
-  MockAuthRepository({UserModel? initialUser}) : _currentUser = initialUser {
+  MockAuthRepository({
+    UserModel? initialUser,
+    LocalCacheService? cacheService,
+  })  : _currentUser = initialUser,
+        _cacheService = cacheService {
+    _initFromCache();
+  }
+
+  final LocalCacheService? _cacheService;
+  UserModel? _currentUser;
+  final _controller = StreamController<UserModel?>.broadcast();
+
+  Future<void> _initFromCache() async {
+    if (_cacheService != null) {
+      final cached = await _cacheService.loadCurrentUser();
+      if (cached != null) {
+        _currentUser = cached;
+      }
+    }
     _controller.add(_currentUser);
   }
 
-  UserModel? _currentUser;
-  final _controller = StreamController<UserModel?>.broadcast();
+  void _persistUser(UserModel? user) {
+    _currentUser = user;
+    _controller.add(_currentUser);
+    _cacheService?.saveCurrentUser(user);
+  }
 
   @override
   Stream<UserModel?> get authStateChanges async* {
@@ -39,7 +63,7 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<UserModel> signInWithEmailAndPassword(String email, String password) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!email.contains('@')) {
       throw ArgumentError('Please enter a valid campus email address.');
     }
@@ -55,8 +79,7 @@ class MockAuthRepository implements AuthRepository {
       campusId: 'CAMPUS-${email.hashCode.abs().toString().substring(0, 5)}',
       role: email.contains('admin') ? UserRole.admin : UserRole.student,
     );
-    _currentUser = user;
-    _controller.add(_currentUser);
+    _persistUser(user);
     return user;
   }
 
@@ -68,7 +91,7 @@ class MockAuthRepository implements AuthRepository {
     required String campusId,
     UserRole role = UserRole.student,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!email.contains('@')) {
       throw ArgumentError('Please enter a valid campus email address.');
     }
@@ -84,25 +107,22 @@ class MockAuthRepository implements AuthRepository {
       campusId: campusId,
       role: role,
     );
-    _currentUser = user;
-    _controller.add(_currentUser);
+    _persistUser(user);
     return user;
   }
 
   @override
   Future<UserModel> signInAnonymously() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     final guest = UserModel.guest();
-    _currentUser = guest;
-    _controller.add(_currentUser);
+    _persistUser(guest);
     return guest;
   }
 
   @override
   Future<void> signOut() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    _currentUser = null;
-    _controller.add(null);
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    _persistUser(null);
   }
 
   void dispose() {
@@ -110,12 +130,17 @@ class MockAuthRepository implements AuthRepository {
   }
 }
 
-/// Provider for AuthRepository
+/// Provider for AuthRepository with automatic dual-mode resolution
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final repo = MockAuthRepository(initialUser: UserModel.guest());
-  ref.onDispose(() {
-    repo.dispose();
-  });
+  if (FirebaseService.isFirebaseInitialized) {
+    return FirebaseAuthRepository();
+  }
+  final cache = ref.watch(localCacheServiceProvider);
+  final repo = MockAuthRepository(
+    initialUser: UserModel.guest(),
+    cacheService: cache,
+  );
+  ref.onDispose(repo.dispose);
   return repo;
 });
 

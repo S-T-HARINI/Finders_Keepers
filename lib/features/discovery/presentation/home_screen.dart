@@ -7,6 +7,7 @@ import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/item_model.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/widgets/cs_card.dart';
 import '../../../core/widgets/cs_search_bar.dart';
 import '../../items/data/item_repository.dart';
@@ -70,16 +71,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_outlined),
+                    if (ref.watch(unreadNotificationsCountProvider) > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: CSColors.accentLimeDark,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 tooltip: 'Notifications',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No new notifications'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
+                onPressed: () => _showNotificationsSheet(context, ref),
               ),
               const SizedBox(width: CSSpacing.xs),
             ],
@@ -122,6 +134,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       }
                     });
                   },
+                ),
+                const SizedBox(height: CSSpacing.md),
+
+                // ── Multi-criteria Category Chips ─────────────────────────────
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      'All',
+                      'Accessories',
+                      'Electronics',
+                      'Documents',
+                      'Bags',
+                      'Keys',
+                      'Apparel',
+                      'Books',
+                      'Other',
+                    ].map((cat) {
+                      final isSelected = (_selectedCategoryFilter == null && cat == 'All') ||
+                          (_selectedCategoryFilter?.toLowerCase() == cat.toLowerCase());
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(cat),
+                          selected: isSelected,
+                          onSelected: (_) {
+                            setState(() {
+                              _selectedCategoryFilter = cat == 'All' ? null : cat;
+                            });
+                          },
+                          selectedColor: CSColors.accentLimeDark,
+                          backgroundColor: CSColors.surfaceCard,
+                          labelStyle: CSTypography.labelSmall.copyWith(
+                            color: isSelected ? CSColors.textPrimary : CSColors.textMuted,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(CSSpacing.radiusChip),
+                            side: BorderSide(
+                              color: isSelected ? CSColors.accentLimeDark : CSColors.dividerLight,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
                 const SizedBox(height: CSSpacing.sectionGap),
 
@@ -297,6 +355,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showNotificationsSheet(BuildContext context, WidgetRef ref) {
+    final notifs = ref.read(notificationServiceProvider).currentNotifications;
+    ref.read(notificationServiceProvider).markAllAsRead();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: CSColors.bgPaper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(CSSpacing.radiusCard)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.all(CSSpacing.pageHorizontal),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Campus Notifications', style: CSTypography.headlineSmall.copyWith(fontSize: 20)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: CSSpacing.spacing12),
+              if (notifs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('No notifications yet.')),
+                )
+              else
+                ...notifs.map((n) {
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: CSColors.surfaceCard,
+                      child: Icon(Icons.notifications_active_outlined, color: CSColors.textPrimary, size: 20),
+                    ),
+                    title: Text(n.title, style: CSTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+                    subtitle: Text(n.body, style: CSTypography.bodySmall),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push(n.route);
+                    },
+                  );
+                }),
+              const SizedBox(height: CSSpacing.spacing16),
+            ],
+          ),
+        );
+      },
     );
   }
 }

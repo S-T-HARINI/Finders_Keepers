@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/firebase_service.dart';
+import '../../../core/services/local_cache_service.dart';
 import 'claim_model.dart';
+import 'firestore_claim_repository.dart';
 
 abstract class ClaimRepository {
   Future<String> submitClaim(ClaimModel claim);
@@ -11,16 +14,33 @@ abstract class ClaimRepository {
 }
 
 class MockClaimRepository implements ClaimRepository {
+  MockClaimRepository({LocalCacheService? cacheService}) : _cacheService = cacheService {
+    _initFromCache();
+  }
+
+  final LocalCacheService? _cacheService;
   final List<ClaimModel> _claims = [];
   final _controller = StreamController<List<ClaimModel>>.broadcast();
 
+  Future<void> _initFromCache() async {
+    if (_cacheService != null) {
+      final cached = await _cacheService.loadClaims();
+      if (cached.isNotEmpty) {
+        _claims.clear();
+        _claims.addAll(cached);
+      }
+    }
+    _broadcast();
+  }
+
   void _broadcast() {
     _controller.add(List.unmodifiable(_claims));
+    _cacheService?.saveClaims(_claims);
   }
 
   @override
   Future<String> submitClaim(ClaimModel claim) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     final claimId = claim.id.isNotEmpty ? claim.id : 'clm_${DateTime.now().millisecondsSinceEpoch}';
     final savedClaim = claim.copyWith(id: claimId);
     _claims.insert(0, savedClaim);
@@ -30,19 +50,19 @@ class MockClaimRepository implements ClaimRepository {
 
   @override
   Future<List<ClaimModel>> getClaimsForItem(String itemId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     return _claims.where((c) => c.itemId == itemId).toList();
   }
 
   @override
   Future<List<ClaimModel>> getClaimsByUser(String uid) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     return _claims.where((c) => c.claimantUid == uid).toList();
   }
 
   @override
   Future<void> updateClaimStatus(String claimId, ClaimStatus status, {String? notes}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     final index = _claims.indexWhere((c) => c.id == claimId);
     if (index != -1) {
       final updated = _claims[index].copyWith(
@@ -67,14 +87,21 @@ class MockClaimRepository implements ClaimRepository {
 }
 
 final claimRepositoryProvider = Provider<ClaimRepository>((ref) {
-  final repo = MockClaimRepository();
-  ref.onDispose(() {
-    repo.dispose();
-  });
+  if (FirebaseService.isFirebaseInitialized) {
+    return FirestoreClaimRepository();
+  }
+  final cache = ref.watch(localCacheServiceProvider);
+  final repo = MockClaimRepository(cacheService: cache);
+  ref.onDispose(repo.dispose);
   return repo;
 });
 
 final userClaimsStreamProvider = StreamProvider.autoDispose.family<List<ClaimModel>, String>((ref, uid) {
   final repo = ref.watch(claimRepositoryProvider);
   return repo.watchClaimsByUser(uid);
+});
+
+final itemClaimsProvider = FutureProvider.autoDispose.family<List<ClaimModel>, String>((ref, itemId) {
+  final repo = ref.watch(claimRepositoryProvider);
+  return repo.getClaimsForItem(itemId);
 });

@@ -209,44 +209,48 @@ class _ClaimItemCard extends StatelessWidget {
         break;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: CSSpacing.md),
-      padding: const EdgeInsets.all(CSSpacing.spacing16),
-      decoration: BoxDecoration(
-        color: CSColors.surfaceCard,
-        borderRadius: BorderRadius.circular(CSSpacing.radiusCard),
-        border: Border.all(color: CSColors.dividerLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CSStatusLabel(
-                text: claim.status.displayName.toUpperCase(),
-                color: statusColor,
-              ),
-              Text(
-                DateFormat('MMM d').format(claim.createdAt),
-                style: CSTypography.caption.copyWith(color: CSColors.textMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: CSSpacing.spacing12),
-          Text(
-            claim.itemTitle,
-            style: CSTypography.headlineSmall.copyWith(fontSize: 18),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Evidence submitted: "${claim.verificationEvidence}"',
-            style: CSTypography.bodySmall.copyWith(
-              color: CSColors.textPrimary,
-              fontStyle: FontStyle.italic,
+    return InkWell(
+      onTap: () => context.push('/items/${claim.itemId}'),
+      borderRadius: BorderRadius.circular(CSSpacing.radiusCard),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: CSSpacing.md),
+        padding: const EdgeInsets.all(CSSpacing.spacing16),
+        decoration: BoxDecoration(
+          color: CSColors.surfaceCard,
+          borderRadius: BorderRadius.circular(CSSpacing.radiusCard),
+          border: Border.all(color: CSColors.dividerLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CSStatusLabel(
+                  text: claim.status.displayName.toUpperCase(),
+                  color: statusColor,
+                ),
+                Text(
+                  DateFormat('MMM d').format(claim.createdAt),
+                  style: CSTypography.caption.copyWith(color: CSColors.textMuted),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: CSSpacing.spacing12),
+            Text(
+              claim.itemTitle,
+              style: CSTypography.headlineSmall.copyWith(fontSize: 18),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Evidence submitted: "${claim.verificationEvidence}"',
+              style: CSTypography.bodySmall.copyWith(
+                color: CSColors.textPrimary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

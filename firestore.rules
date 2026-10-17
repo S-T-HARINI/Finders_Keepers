@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role in ['admin', 'security'] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'security'])
+      );
+    }
+
+    function getItem(itemId) {
+      return get(/databases/$(database)/documents/items/$(itemId)).data;
+    }
+
+    // ── Users Collection ─────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Items Collection ─────────────────────────────────────────────────────
+    match /items/{itemId} {
+      // Anyone can browse campus lost and found items
+      allow read: if true;
+
+      // Authenticated users can report lost or found items
+      allow create: if isAuthenticated() &&
+        request.resource.data.reportedByUid == request.auth.uid &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() >= 3 &&
+        request.resource.data.status in ['active', 'claimed', 'returned'];
+
+      // Only reporter or admin can modify item details
+      // Or an authenticated claimant updating status to claimed
+      allow update: if isOwner(resource.data.reportedByUid) ||
+                    isAdmin() ||
+                    (isAuthenticated() &&
+                     resource.data.status == 'active' &&
+                     request.resource.data.status == 'claimed' &&
+                     request.resource.data.claimedByUid == request.auth.uid &&
+                     resource.data.reportedByUid != request.auth.uid);
+
+      allow delete: if isOwner(resource.data.reportedByUid) || isAdmin();
+    }
+
+    // ── Claims Collection ────────────────────────────────────────────────────
+    match /claims/{claimId} {
+      // Private verification evidence is only accessible to:
+      // 1. Claimant who submitted it
+      // 2. The user who found/reported the item
+      // 3. Campus security / admin
+      allow read: if isAuthenticated() && (
+        resource.data.claimantUid == request.auth.uid ||
+        getItem(resource.data.itemId).reportedByUid == request.auth.uid ||
+        isAdmin()
+      );
+
+      // Claimant can submit a claim, provided:
+      // 1. They are authenticated
+      // 2. They are not claiming an item they reported themselves
+      // 3. Status starts as 'pending'
+      allow create: if isAuthenticated() &&
+        request.resource.data.claimantUid == request.auth.uid &&
+        getItem(request.resource.data.itemId).reportedByUid != request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.verificationEvidence is string &&
+        request.resource.data.verificationEvidence.size() >= 8;
+
+      // Status updates (approve/reject) can ONLY be performed by:
+      // The reporter of the found item OR campus security/admin
+      // A claimant CANNOT approve their own claim!
+      allow update: if isAuthenticated() && (
+        getItem(resource.data.itemId).reportedByUid == request.auth.uid ||
+        isAdmin()
+      ) && (
+        request.resource.data.status in ['approved', 'rejected']
+      );
+
+      // Claimant can withdraw their pending claim
+      allow delete: if isOwner(resource.data.claimantUid) && resource.data.status == 'pending';
+    }
+  }
+}
