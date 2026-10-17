@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
 import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/cs_button.dart';
 import '../../../core/widgets/cs_card.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../claims/data/claim_model.dart';
+import '../../claims/data/claim_repository.dart';
+import '../../items/data/item_repository.dart';
 
-/// My Activity Screen — User's reports and claims
-///
-/// Phase 1: Polished, intentional empty state with clear CTAs.
-/// Phase 2: Populated with user's Firestore items (auth-gated).
-///
-/// Design: Tabbed view (My Reports | My Claims) with empty states
-/// that communicate purpose rather than absence.
-class ActivityScreen extends StatefulWidget {
+class ActivityScreen extends ConsumerStatefulWidget {
   const ActivityScreen({super.key});
 
   @override
-  State<ActivityScreen> createState() => _ActivityScreenState();
+  ConsumerState<ActivityScreen> createState() => _ActivityScreenState();
 }
 
-class _ActivityScreenState extends State<ActivityScreen>
+class _ActivityScreenState extends ConsumerState<ActivityScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -71,7 +74,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
+        children: const [
           _MyReportsTab(),
           _MyClaimsTab(),
         ],
@@ -82,63 +85,167 @@ class _ActivityScreenState extends State<ActivityScreen>
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// My Reports tab — empty state (Phase 1)
-class _MyReportsTab extends StatelessWidget {
+class _MyReportsTab extends ConsumerWidget {
+  const _MyReportsTab();
+
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Auth gate notice
-          _AuthGateBanner(),
-          const SizedBox(height: CSSpacing.lg),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final uid = currentUser?.id ?? 'guest_user';
+    final allItemsAsync = ref.watch(filteredItemsStreamProvider((type: null, category: null, query: '')));
 
-          // Empty state
-          CSEmptyState(
-            icon: Icons.inbox_outlined,
-            title: 'No reports yet',
-            body:
-                'When you report a lost or found item, it will appear here with its current status.',
-            actionLabel: 'Report an item',
-            onAction: () {
-              // Phase 2: navigate to report flow
-            },
-          ),
+    return allItemsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: CSColors.textPrimary)),
+      error: (err, _) => Center(child: Text('Error: $err')),
+      data: (items) {
+        final userReports = items.where((i) => i.reportedByUid == uid).toList();
 
-          // Status legend
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: CSSpacing.screenPadding,
-            ),
-            child: _StatusLegend(),
+        return ListView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CSSpacing.screenPadding,
+            vertical: CSSpacing.md,
           ),
-          const SizedBox(height: CSSpacing.xl),
-        ],
-      ),
+          children: [
+            if (currentUser?.isAnonymous ?? true) const _AuthGateBanner(),
+            const SizedBox(height: CSSpacing.md),
+
+            if (userReports.isEmpty)
+              CSEmptyState(
+                icon: Icons.inbox_outlined,
+                title: 'No reports yet',
+                body: 'When you report a lost or found item, it will appear here with its current status.',
+                actionLabel: 'Report an item',
+                onAction: () {
+                  context.push(AppConstants.kRouteReportItem);
+                },
+              )
+            else
+              ...userReports.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: CSSpacing.md),
+                  child: CSItemCard(
+                    item: item,
+                    onTap: () {
+                      context.push('/items/${item.id}');
+                    },
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: CSSpacing.md),
+            const _StatusLegend(),
+            const SizedBox(height: CSSpacing.xl),
+          ],
+        );
+      },
     );
   }
 }
 
-/// My Claims tab — empty state (Phase 1)
-class _MyClaimsTab extends StatelessWidget {
+class _MyClaimsTab extends ConsumerWidget {
+  const _MyClaimsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final uid = currentUser?.id ?? 'guest_user';
+    final claimsAsync = ref.watch(userClaimsStreamProvider(uid));
+
+    return claimsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: CSColors.textPrimary)),
+      error: (err, _) => Center(child: Text('Error: $err')),
+      data: (claims) {
+        return ListView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CSSpacing.screenPadding,
+            vertical: CSSpacing.md,
+          ),
+          children: [
+            if (currentUser?.isAnonymous ?? true) const _AuthGateBanner(),
+            const SizedBox(height: CSSpacing.md),
+
+            if (claims.isEmpty)
+              CSEmptyState(
+                icon: Icons.task_alt_outlined,
+                title: 'No claims submitted',
+                body: 'When you submit a claim for an item you believe is yours, it will appear here with its approval status.',
+                actionLabel: 'Browse campus items',
+                onAction: () {
+                  context.go('/home');
+                },
+              )
+            else
+              ...claims.map(
+                (claim) => _ClaimItemCard(claim: claim),
+              ),
+
+            const SizedBox(height: CSSpacing.xl),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ClaimItemCard extends StatelessWidget {
+  const _ClaimItemCard({required this.claim});
+  final ClaimModel claim;
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    Color statusColor;
+    switch (claim.status) {
+      case ClaimStatus.pending:
+        statusColor = CSColors.warningOrange;
+        break;
+      case ClaimStatus.approved:
+        statusColor = CSColors.accentLimeDark;
+        break;
+      case ClaimStatus.rejected:
+        statusColor = CSColors.textMuted;
+        break;
+      case ClaimStatus.withdrawn:
+        statusColor = CSColors.graphite;
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: CSSpacing.md),
+      padding: const EdgeInsets.all(CSSpacing.spacing16),
+      decoration: BoxDecoration(
+        color: CSColors.surfaceCard,
+        borderRadius: BorderRadius.circular(CSSpacing.radiusCard),
+        border: Border.all(color: CSColors.dividerLight),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AuthGateBanner(),
-          const SizedBox(height: CSSpacing.lg),
-          CSEmptyState(
-            icon: Icons.task_alt_outlined,
-            title: 'No claims submitted',
-            body:
-                'When you submit a claim for an item you believe is yours, it will appear here with its approval status.',
-            actionLabel: 'Browse found items',
-            onAction: () {
-              // Phase 2: navigate to explore
-            },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              CSStatusLabel(
+                text: claim.status.displayName.toUpperCase(),
+                color: statusColor,
+              ),
+              Text(
+                DateFormat('MMM d').format(claim.createdAt),
+                style: CSTypography.caption.copyWith(color: CSColors.textMuted),
+              ),
+            ],
           ),
-          const SizedBox(height: CSSpacing.xl),
+          const SizedBox(height: CSSpacing.spacing12),
+          Text(
+            claim.itemTitle,
+            style: CSTypography.headlineSmall.copyWith(fontSize: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Evidence submitted: "${claim.verificationEvidence}"',
+            style: CSTypography.bodySmall.copyWith(
+              color: CSColors.textPrimary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ],
       ),
     );
@@ -147,12 +254,12 @@ class _MyClaimsTab extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Banner shown when user is not signed in
 class _AuthGateBanner extends StatelessWidget {
+  const _AuthGateBanner();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(CSSpacing.screenPadding),
       padding: const EdgeInsets.all(CSSpacing.md),
       decoration: BoxDecoration(
         color: CSColors.paperDark,
@@ -169,17 +276,17 @@ class _AuthGateBanner extends StatelessWidget {
           const SizedBox(width: CSSpacing.sm),
           Expanded(
             child: Text(
-              'Sign in to manage your reports and claims.',
+              'Sign in to sync your reports across devices.',
               style: CSTypography.bodySmall,
             ),
           ),
           const SizedBox(width: CSSpacing.sm),
           GestureDetector(
             onTap: () {
-              // Phase 2: navigate to sign-in
+              context.go('/profile');
             },
             child: Text(
-              'Sign in',
+              'Profile',
               style: CSTypography.labelMedium.copyWith(
                 color: CSColors.inkBlack,
                 fontWeight: FontWeight.w700,
@@ -195,8 +302,9 @@ class _AuthGateBanner extends StatelessWidget {
   }
 }
 
-/// Status legend explaining the item lifecycle
 class _StatusLegend extends StatelessWidget {
+  const _StatusLegend();
+
   @override
   Widget build(BuildContext context) {
     return Container(

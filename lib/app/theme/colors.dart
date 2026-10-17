@@ -82,4 +82,20 @@ abstract final class CSColors {
 
   /// Stronger shadow for modals
   static const Color shadowStrong = Color(0x28000000);
+
+  // ─── Aliases & Convenience Tokens ──────────────────────────────────────────
+  static const Color textPrimary = inkBlack;
+  static const Color textSecondary = inkSecondary;
+  static const Color textMuted = graphite;
+  static const Color textInverse = paperWhite;
+  static const Color dividerLight = graphiteHairline;
+  static const Color accentLime = signalLime;
+  static const Color accentLimeDark = signalLimeDark;
+  static const Color accentLimeLight = signalLimeTint;
+  static const Color bgPaper = paperWhite;
+  static const Color surface = surfaceCard;
+  static const Color surfacePlaceholder = paperDark;
+  static const Color warningOrange = statusLost;
+  static const Color surfaceLostTint = statusLostTint;
+  static const Color surfaceFoundTint = statusFoundTint;
 }

@@ -1,25 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/item_model.dart';
 import '../../../core/widgets/cs_card.dart';
 import '../../../core/widgets/cs_search_bar.dart';
+import '../../items/data/item_repository.dart';
 
 /// Home / Discovery Screen
 ///
-/// Design: Clear hierarchy — greeting / search / entry points / recent feed.
+/// Design: Clear editorial hierarchy — greeting / search / entry points / recent feed.
 /// Asymmetric composition with a prominent search area and two category CTAs.
-/// Uses mock data clearly labeled as such (Phase 1 only).
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  ItemType? _selectedTypeFilter;
+  String? _selectedCategoryFilter;
 
   @override
   void dispose() {
@@ -29,6 +35,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filter = (
+      type: _selectedTypeFilter,
+      category: _selectedCategoryFilter,
+      query: _searchController.text,
+    );
+
+    final itemsAsync = ref.watch(filteredItemsStreamProvider(filter));
+
     return Scaffold(
       backgroundColor: CSColors.paperWhite,
       body: CustomScrollView(
@@ -58,7 +72,14 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
                 tooltip: 'Notifications',
-                onPressed: () {},
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No new notifications'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: CSSpacing.xs),
             ],
@@ -83,20 +104,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 CSSearchBar(
                   controller: _searchController,
                   hint: 'Keys, wallet, laptop bag…',
+                  onChanged: (val) {
+                    setState(() {});
+                  },
                 ),
                 const SizedBox(height: CSSpacing.lg),
 
                 // ── Category CTAs: Lost | Found ───────────────────────────────
-                _CategoryEntryRow(),
+                _CategoryEntryRow(
+                  selectedType: _selectedTypeFilter,
+                  onSelectType: (type) {
+                    setState(() {
+                      if (_selectedTypeFilter == type) {
+                        _selectedTypeFilter = null; // Toggle off filter
+                      } else {
+                        _selectedTypeFilter = type;
+                      }
+                    });
+                  },
+                ),
                 const SizedBox(height: CSSpacing.sectionGap),
 
                 // ── Recent items ──────────────────────────────────────────────
                 CSSectionHeader(
-                  title: 'Recent Reports',
-                  actionLabel: 'See all',
-                  onAction: () {},
+                  title: _selectedTypeFilter == null
+                      ? 'Recent Reports'
+                      : (_selectedTypeFilter == ItemType.lost ? 'Lost Items' : 'Found Items'),
+                  actionLabel: _selectedTypeFilter != null ? 'Show all' : null,
+                  onAction: () {
+                    setState(() {
+                      _selectedTypeFilter = null;
+                      _selectedCategoryFilter = null;
+                      _searchController.clear();
+                    });
+                  },
                 ),
-                // Mock data disclaimer
+                // Mock/Live data status banner
                 const SizedBox(height: CSSpacing.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -108,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(CSSpacing.radiusXs),
                   ),
                   child: Text(
-                    '⚙ Demo data — Phase 1 visual development',
+                    'Demo data · Connect Firebase for live reports — Finders Keepers',
                     style: CSTypography.caption.copyWith(
                       color: CSColors.signalLimeDark,
                     ),
@@ -116,17 +159,54 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: CSSpacing.md),
 
-                // Item list
-                ...MockItems.recent.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: CSSpacing.md),
-                    child: CSItemCard(
-                      item: item,
-                      onTap: () {
-                        // Phase 2: navigate to item detail
-                      },
-                    ),
+                // Item list from provider
+                itemsAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: CircularProgressIndicator(color: CSColors.textPrimary)),
                   ),
+                  error: (err, _) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    child: Center(child: Text('Error loading feed: $err')),
+                  ),
+                  data: (items) {
+                    if (items.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              const Icon(Icons.inbox_outlined, size: 48, color: CSColors.textMuted),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No matching reports found',
+                                style: CSTypography.headlineSmall.copyWith(fontSize: 18),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Try clearing filters or search terms',
+                                style: CSTypography.bodySmall.copyWith(color: CSColors.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: items.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: CSSpacing.md),
+                          child: CSItemCard(
+                            item: item,
+                            onTap: () {
+                              context.push('/items/${item.id}');
+                            },
+                          ),
+                        ),
+                      ).toList(),
+                    );
+                  },
                 ),
                 const SizedBox(height: CSSpacing.xl),
               ]),
@@ -138,7 +218,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // ── FAB — Report Item ────────────────────────────────────────────────
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Phase 2: navigate to report item flow
           _showReportBottomSheet(context);
         },
         backgroundColor: CSColors.signalLime,
@@ -160,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
           top: Radius.circular(CSSpacing.radiusLg),
         ),
       ),
-      builder: (context) => Padding(
+      builder: (bottomSheetContext) => Padding(
         padding: const EdgeInsets.all(CSSpacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -194,8 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: CSColors.statusLost,
                     tint: CSColors.statusLostTint,
                     onTap: () {
-                      Navigator.pop(context);
-                      // Phase 2: navigate to lost report flow
+                      Navigator.pop(bottomSheetContext);
+                      context.push(AppConstants.kRouteReportItem, extra: ItemType.lost);
                     },
                   ),
                 ),
@@ -207,14 +286,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: CSColors.statusFound,
                     tint: CSColors.statusFoundTint,
                     onTap: () {
-                      Navigator.pop(context);
-                      // Phase 2: navigate to found report flow
+                      Navigator.pop(bottomSheetContext);
+                      context.push(AppConstants.kRouteReportItem, extra: ItemType.found);
                     },
                   ),
                 ),
               ],
             ),
-            SizedBox(height: MediaQuery.of(context).viewInsets.bottom + CSSpacing.lg),
+            SizedBox(height: MediaQuery.of(bottomSheetContext).viewInsets.bottom + CSSpacing.lg),
           ],
         ),
       ),
@@ -224,30 +303,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CategoryEntryRow extends StatelessWidget {
+class _CategoryEntryRow extends ConsumerWidget {
+  const _CategoryEntryRow({
+    required this.selectedType,
+    required this.onSelectType,
+  });
+
+  final ItemType? selectedType;
+  final ValueChanged<ItemType> onSelectType;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allItems = ref.watch(filteredItemsStreamProvider(
+      (type: null, category: null, query: ''),
+    )).valueOrNull ?? MockItems.all;
+
+    final lostCount = allItems.where((i) => i.type == ItemType.lost).length;
+    final foundCount = allItems.where((i) => i.type == ItemType.found).length;
+
     return Row(
       children: [
         Expanded(
           child: _EntryCard(
             label: 'Lost Items',
-            count: MockItems.lost.length,
+            count: lostCount,
             icon: Icons.search_off_rounded,
             accentColor: CSColors.statusLost,
-            tintColor: CSColors.statusLostTint,
-            onTap: () {},
+            tintColor: selectedType == ItemType.lost ? CSColors.surfaceLostTint : CSColors.statusLostTint,
+            isSelected: selectedType == ItemType.lost,
+            onTap: () => onSelectType(ItemType.lost),
           ),
         ),
         const SizedBox(width: CSSpacing.md),
         Expanded(
           child: _EntryCard(
             label: 'Found Items',
-            count: MockItems.found.length,
+            count: foundCount,
             icon: Icons.volunteer_activism_rounded,
             accentColor: CSColors.statusFound,
-            tintColor: CSColors.statusFoundTint,
-            onTap: () {},
+            tintColor: selectedType == ItemType.found ? CSColors.surfaceFoundTint : CSColors.statusFoundTint,
+            isSelected: selectedType == ItemType.found,
+            onTap: () => onSelectType(ItemType.found),
           ),
         ),
       ],
@@ -262,6 +358,7 @@ class _EntryCard extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     required this.tintColor,
+    required this.isSelected,
     required this.onTap,
   });
 
@@ -270,18 +367,23 @@ class _EntryCard extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final Color tintColor;
+  final bool isSelected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(CSSpacing.md),
         decoration: BoxDecoration(
           color: tintColor,
           borderRadius: BorderRadius.circular(CSSpacing.radiusMd),
-          border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 0.5),
+          border: Border.all(
+            color: isSelected ? accentColor : accentColor.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 0.5,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +407,7 @@ class _EntryCard extends StatelessWidget {
               style: CSTypography.titleMedium.copyWith(color: accentColor),
             ),
             Text(
-              'active reports',
+              isSelected ? 'tap to clear filter' : 'active reports',
               style: CSTypography.caption.copyWith(color: accentColor.withValues(alpha: 0.7)),
             ),
           ],

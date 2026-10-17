@@ -1,33 +1,78 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart' hide Path;
+
 import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
 import '../../../core/models/item_model.dart';
+import '../../../core/widgets/cs_button.dart';
 import '../../../core/widgets/cs_card.dart';
+import '../../items/data/item_repository.dart';
+import 'campus_locations.dart';
 
-/// Explore Screen — Map / List shell
-///
-/// Phase 1: Layout shell with map placeholder and list toggle.
-/// Phase 2: Integrate flutter_map + OpenStreetMap with real item pins.
-///
-/// Design: Toggle between map view and list view. Map placeholder communicates
-/// the future interface without fabricating data or location access.
-class ExploreScreen extends StatefulWidget {
+/// Explore Screen — Interactive OpenStreetMap & List view
+class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
 
   @override
-  State<ExploreScreen> createState() => _ExploreScreenState();
+  ConsumerState<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen> {
+class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   bool _showMap = true;
+  String _selectedCategory = 'All';
+  ItemType? _selectedType;
+  ItemModel? _selectedItemPreview;
+
+  final MapController _mapController = MapController();
+
+  final List<String> _filters = const [
+    'All',
+    'Lost',
+    'Found',
+    'Accessories',
+    'Electronics',
+    'Documents',
+    'Bags',
+    'Keys',
+  ];
+
+  void _onFilterTap(String filter) {
+    setState(() {
+      _selectedCategory = filter;
+      if (filter == 'Lost') {
+        _selectedType = ItemType.lost;
+      } else if (filter == 'Found') {
+        _selectedType = ItemType.found;
+      } else {
+        _selectedType = null;
+      }
+      _selectedItemPreview = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final filter = (
+      type: _selectedType,
+      category: (_selectedCategory != 'All' && _selectedCategory != 'Lost' && _selectedCategory != 'Found')
+          ? _selectedCategory
+          : null,
+      query: '',
+    );
+
+    final itemsAsync = ref.watch(filteredItemsStreamProvider(filter));
+
     return Scaffold(
       backgroundColor: CSColors.paperWhite,
       appBar: AppBar(
-        title: const Text('Explore'),
+        backgroundColor: CSColors.paperWhite,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Explore Campus'),
         actions: [
           // Map / List toggle
           Container(
@@ -57,161 +102,265 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ),
         ],
       ),
-      body: _showMap ? _MapView() : _ListView(),
+      body: Column(
+        children: [
+          // Filter Chips Row
+          Container(
+            color: CSColors.paperWhite,
+            padding: const EdgeInsets.symmetric(horizontal: CSSpacing.screenPadding, vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _filters.map((filterName) {
+                  final isSelected = _selectedCategory == filterName;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(filterName),
+                      selected: isSelected,
+                      selectedColor: CSColors.accentLime,
+                      backgroundColor: CSColors.surfaceCard,
+                      labelStyle: CSTypography.labelSmall.copyWith(
+                        color: isSelected ? CSColors.textPrimary : CSColors.textMuted,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      side: BorderSide(
+                        color: isSelected ? CSColors.accentLimeDark : CSColors.dividerLight,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(CSSpacing.radiusChip),
+                      ),
+                      onSelected: (_) => _onFilterTap(filterName),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: CSColors.dividerLight),
+
+          // Content
+          Expanded(
+            child: itemsAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: CSColors.textPrimary),
+              ),
+              error: (err, _) => Center(
+                child: Text('Error loading map items: $err'),
+              ),
+              data: (items) {
+                return _showMap
+                    ? _buildInteractiveMap(items)
+                    : _buildListView(items);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
+  Widget _buildInteractiveMap(List<ItemModel> items) {
+    // Generate markers from items that have approximate coordinates
+    final markers = items.map((item) {
+      final lat = item.lat ?? CampusLocations.centerLat;
+      final lng = item.lng ?? CampusLocations.centerLng;
+      final isLost = item.type == ItemType.lost;
+      final color = isLost ? CSColors.statusLost : CSColors.statusFound;
 
-/// Map placeholder — communicates the future interface without fabrication.
-class _MapView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Map background — textured grid to suggest a map canvas
-        SizedBox.expand(
-          child: CustomPaint(
-            painter: _MapGridPainter(),
-          ),
-        ),
-
-        // Map placeholder message
-        Center(
+      return Marker(
+        point: LatLng(lat, lng),
+        width: 120,
+        height: 60,
+        child: GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedItemPreview = item;
+            });
+          },
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(CSSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: CSColors.paperWhite,
-                  borderRadius: BorderRadius.circular(CSSpacing.radiusLg),
+                  color: color,
+                  borderRadius: BorderRadius.circular(CSSpacing.radiusXs),
                   boxShadow: const [
-                    BoxShadow(
-                      color: CSColors.shadow,
-                      blurRadius: 16,
-                      offset: Offset(0, 4),
-                    ),
+                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        color: CSColors.signalLimeTint,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.map_outlined,
-                        size: 28,
-                        color: CSColors.signalLimeDark,
-                      ),
-                    ),
-                    const SizedBox(height: CSSpacing.md),
-                    Text(
-                      'Campus Map',
-                      style: CSTypography.headlineSmall,
-                    ),
-                    const SizedBox(height: CSSpacing.xs),
-                    Text(
-                      'OpenStreetMap integration\narrives in Phase 2.',
-                      style: CSTypography.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: CSSpacing.md),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: CSSpacing.sm,
-                        vertical: CSSpacing.xs,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CSColors.signalLimeTint,
-                        borderRadius:
-                            BorderRadius.circular(CSSpacing.radiusXs),
-                      ),
-                      child: Text(
-                        'Architecture boundary',
-                        style: CSTypography.caption.copyWith(
-                          color: CSColors.signalLimeDark,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CSTypography.caption.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
+              ),
+              CustomPaint(
+                size: const Size(8, 5),
+                painter: _PinArrowPainter(color: color),
               ),
             ],
           ),
         ),
+      );
+    }).toList();
 
-        // Sample location pins — illustrative, not real data
-        ..._samplePins.map((pin) => _MapPin(pin: pin)),
+    // Privacy Circles: 100m approximate radius circles around items
+    final circles = items.map((item) {
+      final lat = item.lat ?? CampusLocations.centerLat;
+      final lng = item.lng ?? CampusLocations.centerLng;
+      final isLost = item.type == ItemType.lost;
+      return CircleMarker(
+        point: LatLng(lat, lng),
+        radius: 40,
+        useRadiusInMeter: true,
+        color: (isLost ? CSColors.statusLost : CSColors.accentLime).withValues(alpha: 0.15),
+        borderColor: (isLost ? CSColors.statusLost : CSColors.accentLimeDark).withValues(alpha: 0.4),
+        borderStrokeWidth: 1.5,
+      );
+    }).toList();
 
-        // Bottom filter strip
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _FilterStrip(),
-        ),
-      ],
-    );
-  }
-}
-
-class _ListView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
+    return Stack(
       children: [
-        // Filter row
-        const Padding(
-          padding: EdgeInsets.fromLTRB(
-            CSSpacing.screenPadding,
-            CSSpacing.md,
-            CSSpacing.screenPadding,
-            0,
+        FlutterMap(
+          mapController: _mapController,
+          options: const MapOptions(
+            initialCenter: LatLng(CampusLocations.centerLat, CampusLocations.centerLng),
+            initialZoom: 16.2,
+            minZoom: 14.0,
+            maxZoom: 18.5,
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.campustech.finders_keepers',
+            ),
+            CircleLayer(circles: circles),
+            MarkerLayer(markers: markers),
+          ],
+        ),
+
+        // Approximate Location Privacy Badge
+        Positioned(
+          top: 12,
+          left: 16,
+          right: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: CSColors.surfaceCard.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(CSSpacing.radiusSmall),
+              border: Border.all(color: CSColors.dividerLight),
+            ),
             child: Row(
               children: [
-                _FilterChip(label: 'All', selected: true),
-                SizedBox(width: CSSpacing.sm),
-                _FilterChip(label: 'Lost', selected: false),
-                SizedBox(width: CSSpacing.sm),
-                _FilterChip(label: 'Found', selected: false),
-                SizedBox(width: CSSpacing.sm),
-                _FilterChip(label: 'Electronics', selected: false),
-                SizedBox(width: CSSpacing.sm),
-                _FilterChip(label: 'Documents', selected: false),
-                SizedBox(width: CSSpacing.sm),
-                _FilterChip(label: 'Accessories', selected: false),
+                const Icon(Icons.privacy_tip_outlined, size: 16, color: CSColors.accentLimeDark),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Approximate ~100m zones shown to protect privacy',
+                    style: CSTypography.caption.copyWith(color: CSColors.textPrimary),
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: CSSpacing.md),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(
-              horizontal: CSSpacing.screenPadding,
-              vertical: CSSpacing.xs,
-            ),
-            itemCount: MockItems.all.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: CSSpacing.md),
-            itemBuilder: (context, index) => CSItemCard(
-              item: MockItems.all[index],
-              onTap: () {},
+
+        // Selected Pin Bottom Preview Card
+        if (_selectedItemPreview != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: GestureDetector(
+              onTap: () {
+                context.push('/items/${_selectedItemPreview!.id}');
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: CSColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(CSSpacing.radiusCard),
+                  border: Border.all(
+                    color: _selectedItemPreview!.type == ItemType.lost
+                        ? CSColors.warningOrange
+                        : CSColors.accentLimeDark,
+                    width: 1.5,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              CSStatusLabel(
+                                text: _selectedItemPreview!.type == ItemType.lost ? 'LOST' : 'FOUND',
+                                color: _selectedItemPreview!.type == ItemType.lost
+                                    ? CSColors.warningOrange
+                                    : CSColors.accentLimeDark,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _selectedItemPreview!.category,
+                                style: CSTypography.caption.copyWith(color: CSColors.textMuted),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _selectedItemPreview!.title,
+                            style: CSTypography.labelMedium.copyWith(fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            _selectedItemPreview!.locationLabel,
+                            style: CSTypography.bodySmall.copyWith(color: CSColors.textMuted),
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios, size: 16, color: CSColors.textPrimary),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
       ],
+    );
+  }
+
+  Widget _buildListView(List<ItemModel> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text('No items match selected filter', style: CSTypography.bodyMedium),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(CSSpacing.screenPadding),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: CSSpacing.md),
+      itemBuilder: (context, index) => CSItemCard(
+        item: items[index],
+        onTap: () {
+          context.push('/items/${items[index].id}');
+        },
+      ),
     );
   }
 }
@@ -267,133 +416,6 @@ class _ToggleTab extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected});
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: CSSpacing.md,
-        vertical: CSSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: selected ? CSColors.signalLime : CSColors.paperDark,
-        borderRadius: BorderRadius.circular(CSSpacing.radiusXs),
-        border: Border.all(
-          color: selected ? CSColors.signalLimeDark : CSColors.graphiteHairline,
-        ),
-      ),
-      child: Text(
-        label,
-        style: CSTypography.labelMedium.copyWith(
-          color: selected ? CSColors.inkBlack : CSColors.graphite,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterStrip extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        CSSpacing.screenPadding,
-        CSSpacing.md,
-        CSSpacing.screenPadding,
-        CSSpacing.lg,
-      ),
-      decoration: const BoxDecoration(
-        color: CSColors.paperWhite,
-        border: Border(
-          top: BorderSide(color: CSColors.graphiteHairline, width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.tune_rounded,
-            size: 18,
-            color: CSColors.graphite,
-          ),
-          const SizedBox(width: CSSpacing.sm),
-          Text('Filter by area or category', style: CSTypography.bodySmall),
-          const Spacer(),
-          Text(
-            '${MockItems.all.length} items',
-            style: CSTypography.labelMedium,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _PinData {
-  const _PinData({
-    required this.label,
-    required this.type,
-    required this.x,
-    required this.y,
-  });
-  final String label;
-  final ItemType type;
-  final double x; // fractional position
-  final double y;
-}
-
-const _samplePins = [
-  _PinData(label: 'Library', type: ItemType.lost, x: 0.25, y: 0.35),
-  _PinData(label: 'Cafeteria', type: ItemType.found, x: 0.6, y: 0.45),
-  _PinData(label: 'Seminar Hall', type: ItemType.found, x: 0.75, y: 0.28),
-  _PinData(label: 'Sports Complex', type: ItemType.lost, x: 0.4, y: 0.65),
-];
-
-class _MapPin extends StatelessWidget {
-  const _MapPin({required this.pin});
-  final _PinData pin;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final color =
-        pin.type == ItemType.lost ? CSColors.statusLost : CSColors.statusFound;
-    return Positioned(
-      left: pin.x * size.width - 16,
-      top: pin.y * (size.height - 120) + 20,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(CSSpacing.radiusXs),
-            ),
-            child: Text(
-              pin.label,
-              style: CSTypography.caption.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          CustomPaint(
-            size: const Size(10, 6),
-            painter: _PinArrowPainter(color: color),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PinArrowPainter extends CustomPainter {
   const _PinArrowPainter({required this.color});
   final Color color;
@@ -407,37 +429,6 @@ class _PinArrowPainter extends CustomPainter {
       ..lineTo(size.width, 0)
       ..close();
     canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = CSColors.graphiteHairline
-      ..strokeWidth = 0.5;
-    const step = 32.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-    // Background
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = const Color(0xFFEEEBE3),
-    );
-    // Grid lines on top
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
   }
 
   @override

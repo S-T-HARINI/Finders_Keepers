@@ -57,4 +57,20 @@ abstract final class CSSpacing {
 
   /// Item card image aspect ratio
   static const double cardImageRatio = 4 / 3;
+
+  // ─── Convenience scale aliases ─────────────────────────────────────────────
+  static const double spacing4 = xs;
+  static const double spacing8 = sm;
+  static const double spacing12 = 12.0;
+  static const double spacing16 = md;
+  static const double spacing20 = 20.0;
+  static const double spacing24 = lg;
+  static const double spacing32 = sectionGap;
+  static const double spacing40 = xl;
+  static const double pageHorizontal = screenPadding;
+  static const double radiusSmall = radiusSm;
+  static const double radiusCard = radiusLg;
+  static const double radiusInput = radiusMd;
+  static const double radiusButton = radiusMd;
+  static const double radiusChip = radiusFull;
 }

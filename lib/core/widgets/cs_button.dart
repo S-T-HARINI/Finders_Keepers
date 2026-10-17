@@ -13,34 +13,42 @@ enum CSStatusVariant { lost, found, claimed, returned }
 
 class CSStatusLabel extends StatelessWidget {
   const CSStatusLabel({
-    required this.variant,
+    this.variant = CSStatusVariant.lost,
+    this.text,
+    this.color,
     super.key,
     this.small = false,
   });
 
   final CSStatusVariant variant;
+  final String? text;
+  final Color? color;
   final bool small;
 
   @override
   Widget build(BuildContext context) {
     final config = _config;
+    final labelText = text ?? config.label;
+    final accentColor = color ?? config.accentColor;
+    final tintColor = color != null ? color!.withValues(alpha: 0.12) : config.tintColor;
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: small ? CSSpacing.xs : CSSpacing.sm,
         vertical: small ? 2 : CSSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: config.tintColor,
+        color: tintColor,
         borderRadius: BorderRadius.circular(CSSpacing.radiusXs),
         border: Border(
-          left: BorderSide(color: config.accentColor, width: 2.5),
+          left: BorderSide(color: accentColor, width: 2.5),
         ),
       ),
       child: Text(
-        config.label.toUpperCase(),
+        labelText.toUpperCase(),
         style: (small ? CSTypography.labelSmall : CSTypography.labelMedium)
             .copyWith(
-          color: config.accentColor,
+          color: accentColor,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
         ),

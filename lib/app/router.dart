@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+import '../core/models/item_model.dart';
 import '../core/widgets/cs_scaffold.dart';
 import '../features/activity/presentation/activity_screen.dart';
 import '../features/auth/presentation/welcome_screen.dart';
 import '../features/discovery/presentation/home_screen.dart';
+import '../features/items/presentation/item_detail_screen.dart';
+import '../features/items/presentation/report_item_screen.dart';
 import '../features/map/presentation/explore_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 
@@ -14,12 +18,16 @@ abstract final class AppRoutes {
   static const String explore = 'explore';
   static const String activity = 'activity';
   static const String profile = 'profile';
+  static const String report = 'report';
+  static const String itemDetail = 'item-detail';
 }
 
 /// GoRouter configuration for Finders Keepers.
 ///
 /// Structure:
 /// • /  → WelcomeScreen (no shell — entry point)
+/// • /report → ReportItemScreen (modal flow)
+/// • /items/:id → ItemDetailScreen (detail flow)
 /// • /home, /explore, /activity, /profile → ShellRoute with bottom nav
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -33,6 +41,30 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         child: const WelcomeScreen(),
         transitionsBuilder: _fadeTransition,
+      ),
+    ),
+
+    // ── Report Item Screen ──────────────────────────────────────────────────
+    GoRoute(
+      path: '/report',
+      name: AppRoutes.report,
+      pageBuilder: (context, state) => MaterialPage(
+        key: state.pageKey,
+        child: ReportItemScreen(
+          initialType: state.extra is ItemType ? state.extra as ItemType : ItemType.lost,
+        ),
+      ),
+    ),
+
+    // ── Item Details Screen ─────────────────────────────────────────────────
+    GoRoute(
+      path: '/items/:id',
+      name: AppRoutes.itemDetail,
+      pageBuilder: (context, state) => MaterialPage(
+        key: state.pageKey,
+        child: ItemDetailScreen(
+          itemId: state.pathParameters['id'] ?? '',
+        ),
       ),
     ),
 
