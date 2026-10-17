@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/widgets/cs_scaffold.dart';
+import '../features/activity/presentation/activity_screen.dart';
 import '../features/auth/presentation/welcome_screen.dart';
 import '../features/discovery/presentation/home_screen.dart';
 import '../features/map/presentation/explore_screen.dart';
-import '../features/activity/presentation/activity_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 
 /// Route name constants — used for named navigation.

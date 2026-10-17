@@ -44,8 +44,11 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   build_runner: ^2.4.11
   riverpod_generator: ^2.4.3
-  custom_lint: ^0.6.7
+  custom_lint: 0.7.6
   riverpod_lint: ^2.3.13
+
+dependency_overrides:
+  path_provider_android: 2.2.17
 
 flutter:
   uses-material-design: true
@@ -53,9 +56,9 @@ flutter:
     - assets/images/
     - assets/icons/
 
-  fonts:
-    - family: DMSerifDisplay
-      fonts:
-        - asset: assets/fonts/DMSerifDisplay-Regular.ttf
-        - asset: assets/fonts/DMSerifDisplay-Italic.ttf
-          style: italic
+  # fonts:
+  #   - family: DMSerifDisplay
+  #     fonts:
+  #       - asset: assets/fonts/DMSerifDisplay-Regular.ttf
+  #       - asset: assets/fonts/DMSerifDisplay-Italic.ttf
+  #         style: italic

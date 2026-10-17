@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
-import '../../app/theme/spacing.dart';
-import '../../app/theme/typography.dart';
-import '../../core/constants/app_constants.dart';
 
 /// Campus Signal — Shell Scaffold with Bottom Navigation
 ///
@@ -11,8 +8,8 @@ import '../../core/constants/app_constants.dart';
 /// Each destination uses a semantically correct icon + label.
 class CSShellScaffold extends StatelessWidget {
   const CSShellScaffold({
-    super.key,
     required this.navigationShell,
+    super.key,
   });
 
   final StatefulNavigationShell navigationShell;

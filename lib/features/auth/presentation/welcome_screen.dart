@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/router.dart';
 import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
-import '../../../app/router.dart';
 import '../../../core/widgets/cs_button.dart';
-import '../../../core/constants/app_constants.dart';
 
 /// Welcome Screen — Finders Keepers entry point.
 ///
@@ -47,14 +46,15 @@ class WelcomeScreen extends StatelessWidget {
 
             // ── Main visual — editorial composition ──────────────────────────
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CSSpacing.screenPadding,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CSSpacing.screenPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                     // Large editorial heading — DM Serif Display
                     RichText(
                       text: TextSpan(
@@ -112,6 +112,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+          ),
 
             // ── Bottom — stats strip ─────────────────────────────────────────
             Container(
@@ -128,11 +129,11 @@ class WelcomeScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _StatCell(count: '—', label: 'Items reported'),
+                  const _StatCell(count: '—', label: 'Items reported'),
                   _Divider(),
-                  _StatCell(count: '—', label: 'Items returned'),
+                  const _StatCell(count: '—', label: 'Items returned'),
                   _Divider(),
-                  _StatCell(count: '—', label: 'Active users'),
+                  const _StatCell(count: '—', label: 'Active users'),
                 ],
               ),
             ),

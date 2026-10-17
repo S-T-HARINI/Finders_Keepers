@@ -8,13 +8,17 @@
 //
 // Run with: flutter test test/navigation_test.dart
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:finders_keepers/app/app.dart';
 import 'package:finders_keepers/app/router.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  setUp(() {
+    appRouter.go('/');
+  });
+
   group('App bootstraps', () {
     testWidgets('App renders without crashing', (tester) async {
       await tester.pumpWidget(
@@ -48,7 +52,7 @@ void main() {
         const ProviderScope(child: FindersKeepersApp()),
       );
       await tester.pumpAndSettle();
-      expect(find.textContaining('what\'s lost'), findsOneWidget);
+      expect(find.textContaining('trusted campus network'), findsOneWidget);
     });
   });
 
@@ -111,7 +115,7 @@ void main() {
       await tester.tap(find.text('Profile'));
       await tester.pumpAndSettle();
       expect(find.text('Profile'), findsWidgets);
-      expect(find.text('Account'), findsOneWidget);
+      expect(find.text('ACCOUNT'), findsOneWidget);
     });
 
     testWidgets('Can navigate back to Home from Profile', (tester) async {

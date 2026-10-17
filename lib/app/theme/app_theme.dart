@@ -1,9 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'colors.dart';
-import 'typography.dart';
 import 'spacing.dart';
-import 'motion.dart';
+import 'typography.dart';
 
 /// Campus Signal — App Theme
 ///
@@ -13,7 +13,7 @@ abstract final class AppTheme {
   static ThemeData get light => _buildTheme();
 
   static ThemeData _buildTheme() {
-    final colorScheme = const ColorScheme(
+    const colorScheme = ColorScheme(
       brightness: Brightness.light,
       primary: CSColors.signalLime,
       onPrimary: CSColors.inkBlack,
@@ -203,7 +203,7 @@ abstract final class AppTheme {
       // ── Visual density ─────────────────────────────────────────────────────
       visualDensity: VisualDensity.standard,
       splashColor: CSColors.signalLimeTint,
-      highlightColor: CSColors.signalLimeTint.withOpacity(0.5),
+      highlightColor: CSColors.signalLimeTint.withValues(alpha: 0.5),
     );
   }
 }

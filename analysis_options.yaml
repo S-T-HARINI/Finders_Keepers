@@ -12,6 +12,8 @@ analyzer:
   exclude:
     - '**/*.g.dart'
     - '**/*.freezed.dart'
+    - build/**
+    - android/**
 
 linter:
   rules:

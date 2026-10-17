@@ -171,7 +171,6 @@ final class MockItems {
       category: 'Accessories',
       locationLabel: 'Near Library, Block B',
       reportedAt: DateTime.now().subtract(const Duration(hours: 3)),
-      imageUrl: null,
     ),
     ItemModel(
       id: 'mock-002',
@@ -182,7 +181,6 @@ final class MockItems {
       category: 'Documents',
       locationLabel: 'Main Cafeteria',
       reportedAt: DateTime.now().subtract(const Duration(hours: 7)),
-      imageUrl: null,
     ),
     ItemModel(
       id: 'mock-003',
@@ -193,7 +191,6 @@ final class MockItems {
       category: 'Electronics',
       locationLabel: 'Seminar Hall 3',
       reportedAt: DateTime.now().subtract(const Duration(days: 1)),
-      imageUrl: null,
     ),
     ItemModel(
       id: 'mock-004',
@@ -205,7 +202,6 @@ final class MockItems {
       category: 'Bags',
       locationLabel: 'Sports Complex',
       reportedAt: DateTime.now().subtract(const Duration(days: 2)),
-      imageUrl: null,
     ),
     ItemModel(
       id: 'mock-005',
@@ -216,7 +212,6 @@ final class MockItems {
       category: 'Accessories',
       locationLabel: 'Lab Block, 2nd Floor',
       reportedAt: DateTime.now().subtract(const Duration(days: 3)),
-      imageUrl: null,
     ),
   ];
 

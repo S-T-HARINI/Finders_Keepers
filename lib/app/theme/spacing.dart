@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 /// Campus Signal — Spacing & Sizing Tokens
 ///

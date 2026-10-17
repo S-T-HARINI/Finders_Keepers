@@ -39,7 +39,7 @@ class ProfileScreen extends StatelessWidget {
 
           // ── Account section ───────────────────────────────────────────────
           const SizedBox(height: CSSpacing.sm),
-          _SectionLabel(label: 'Account'),
+          const _SectionLabel(label: 'Account'),
           _SettingsItem(
             icon: Icons.person_outline_rounded,
             label: 'Personal information',
@@ -61,7 +61,7 @@ class ProfileScreen extends StatelessWidget {
 
           // ── App section ───────────────────────────────────────────────────
           const SizedBox(height: CSSpacing.sm),
-          _SectionLabel(label: 'App'),
+          const _SectionLabel(label: 'App'),
           _SettingsItem(
             icon: Icons.help_outline_rounded,
             label: 'How it works',
@@ -83,7 +83,7 @@ class ProfileScreen extends StatelessWidget {
 
           // ── Legal section ─────────────────────────────────────────────────
           const SizedBox(height: CSSpacing.sm),
-          _SectionLabel(label: 'Legal & Info'),
+          const _SectionLabel(label: 'Legal & Info'),
           _SettingsItem(
             icon: Icons.description_outlined,
             label: 'Terms of service',
@@ -162,7 +162,6 @@ class _ProfileHero extends StatelessWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Avatar
           Container(
@@ -205,12 +204,12 @@ class _ProfileHero extends StatelessWidget {
                 ),
                 const SizedBox(height: CSSpacing.sm),
                 // Quick stats
-                Row(
+                const Row(
                   children: [
                     _MiniStat(count: '—', label: 'Reports'),
-                    const SizedBox(width: CSSpacing.lg),
+                    SizedBox(width: CSSpacing.lg),
                     _MiniStat(count: '—', label: 'Claims'),
-                    const SizedBox(width: CSSpacing.lg),
+                    SizedBox(width: CSSpacing.lg),
                     _MiniStat(count: '—', label: 'Returned'),
                   ],
                 ),
@@ -270,8 +269,8 @@ class _SettingsItem extends StatelessWidget {
   const _SettingsItem({
     required this.icon,
     required this.label,
-    this.subtitle,
     required this.onTap,
+    this.subtitle,
   });
 
   final IconData icon;

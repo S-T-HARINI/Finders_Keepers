@@ -13,8 +13,8 @@ import 'cs_button.dart';
 /// Not a generic card grid cell — has deliberate hierarchy.
 class CSItemCard extends StatelessWidget {
   const CSItemCard({
-    super.key,
     required this.item,
+    super.key,
     this.onTap,
   });
 
@@ -173,7 +173,7 @@ class _ImagePlaceholder extends StatelessWidget {
           child: Icon(
             _categoryIcon,
             size: 40,
-            color: fg.withOpacity(0.6),
+            color: fg.withValues(alpha: 0.6),
           ),
         ),
       ),
@@ -199,10 +199,10 @@ class _ImagePlaceholder extends StatelessWidget {
 /// Uses intentional whitespace and a clear primary action.
 class CSEmptyState extends StatelessWidget {
   const CSEmptyState({
-    super.key,
     required this.icon,
     required this.title,
     required this.body,
+    super.key,
     this.actionLabel,
     this.onAction,
   });
@@ -226,7 +226,7 @@ class CSEmptyState extends StatelessWidget {
           Container(
             width: 72,
             height: 72,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: CSColors.paperDark,
               shape: BoxShape.circle,
             ),
@@ -267,8 +267,8 @@ class CSEmptyState extends StatelessWidget {
 /// Asymmetric section heading: large label left, optional action right.
 class CSSectionHeader extends StatelessWidget {
   const CSSectionHeader({
-    super.key,
     required this.title,
+    super.key,
     this.actionLabel,
     this.onAction,
   });

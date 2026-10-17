@@ -9,16 +9,16 @@
 //
 // Run with: flutter test test/theme_test.dart
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:finders_keepers/app/theme/colors.dart';
-import 'package:finders_keepers/app/theme/spacing.dart';
-import 'package:finders_keepers/app/theme/motion.dart';
-import 'package:finders_keepers/app/theme/typography.dart';
 import 'package:finders_keepers/app/theme/app_theme.dart';
+import 'package:finders_keepers/app/theme/colors.dart';
+import 'package:finders_keepers/app/theme/motion.dart';
+import 'package:finders_keepers/app/theme/spacing.dart';
 import 'package:finders_keepers/core/models/item_model.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('CSColors — color token integrity', () {
     test('All primary colors have full opacity (non-transparent)', () {
       expect(CSColors.paperWhite.a, equals(1.0));
@@ -117,29 +117,29 @@ void main() {
   });
 
   group('AppTheme — theme configuration', () {
-    test('Theme builds without throwing', () {
+    testWidgets('Theme builds without throwing', (tester) async {
       expect(() => AppTheme.light, returnsNormally);
     });
 
-    test('Theme uses Material 3', () {
+    testWidgets('Theme uses Material 3', (tester) async {
       expect(AppTheme.light.useMaterial3, isTrue);
     });
 
-    test('Scaffold background matches paper white', () {
+    testWidgets('Scaffold background matches paper white', (tester) async {
       expect(
         AppTheme.light.scaffoldBackgroundColor,
         equals(CSColors.paperWhite),
       );
     });
 
-    test('Color scheme primary is Signal Lime', () {
+    testWidgets('Color scheme primary is Signal Lime', (tester) async {
       expect(
         AppTheme.light.colorScheme.primary,
         equals(CSColors.signalLime),
       );
     });
 
-    test('Color scheme surface is paper white', () {
+    testWidgets('Color scheme surface is paper white', (tester) async {
       expect(
         AppTheme.light.colorScheme.surface,
         equals(CSColors.paperWhite),

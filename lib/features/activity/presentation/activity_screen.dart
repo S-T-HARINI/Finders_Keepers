@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
-import '../../../core/widgets/cs_button.dart';
 import '../../../core/widgets/cs_card.dart';
 
 /// My Activity Screen — User's reports and claims
@@ -215,19 +214,19 @@ class _StatusLegend extends StatelessWidget {
             style: CSTypography.titleMedium,
           ),
           const SizedBox(height: CSSpacing.md),
-          _LegendRow(
+          const _LegendRow(
             color: CSColors.statusLost,
             label: 'Active',
             description: 'Item is reported, no match yet.',
           ),
           const SizedBox(height: CSSpacing.sm),
-          _LegendRow(
+          const _LegendRow(
             color: CSColors.statusClaimed,
             label: 'Claimed',
             description: 'A claim is pending review.',
           ),
           const SizedBox(height: CSSpacing.sm),
-          _LegendRow(
+          const _LegendRow(
             color: CSColors.statusFound,
             label: 'Returned',
             description: 'Item has been returned to its owner.',

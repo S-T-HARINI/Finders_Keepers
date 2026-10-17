@@ -3,7 +3,6 @@ import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
 import '../../../core/models/item_model.dart';
-import '../../../core/widgets/cs_button.dart';
 import '../../../core/widgets/cs_card.dart';
 import '../../../core/widgets/cs_search_bar.dart';
 
@@ -282,7 +281,7 @@ class _EntryCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: tintColor,
           borderRadius: BorderRadius.circular(CSSpacing.radiusMd),
-          border: Border.all(color: accentColor.withOpacity(0.2), width: 0.5),
+          border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +306,7 @@ class _EntryCard extends StatelessWidget {
             ),
             Text(
               'active reports',
-              style: CSTypography.caption.copyWith(color: accentColor.withOpacity(0.7)),
+              style: CSTypography.caption.copyWith(color: accentColor.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -340,7 +339,7 @@ class _ReportTypeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: tint,
           borderRadius: BorderRadius.circular(CSSpacing.radiusMd),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [

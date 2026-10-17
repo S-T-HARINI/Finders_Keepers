@@ -91,8 +91,8 @@ class _CSSearchBarState extends State<CSSearchBar> {
                 _controller.clear();
                 widget.onChanged?.call('');
               },
-              child: Padding(
-                padding: const EdgeInsets.all(CSSpacing.sm),
+              child: const Padding(
+                padding: EdgeInsets.all(CSSpacing.sm),
                 child: Icon(
                   Icons.cancel_rounded,
                   size: 18,

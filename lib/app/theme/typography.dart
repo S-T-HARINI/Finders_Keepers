@@ -8,9 +8,6 @@ import 'colors.dart';
 /// • DM Serif Display — editorial headings, brand moments
 /// • Inter — interface text, readable at all sizes
 abstract final class CSTypography {
-  // ─── Font families ────────────────────────────────────────────────────────
-  static const String _serifFamily = 'DMSerifDisplay';
-
   // ─── DM Serif Display (editorial headings) ─────────────────────────────
   static TextStyle get displayLarge => GoogleFonts.dmSerifDisplay(
         fontSize: 48,

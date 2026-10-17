@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../../app/theme/colors.dart';
+import '../../app/theme/motion.dart';
 import '../../app/theme/spacing.dart';
 import '../../app/theme/typography.dart';
-import '../../app/theme/motion.dart';
 
 /// Campus Signal — Status Label
 ///
@@ -12,8 +13,8 @@ enum CSStatusVariant { lost, found, claimed, returned }
 
 class CSStatusLabel extends StatelessWidget {
   const CSStatusLabel({
-    super.key,
     required this.variant,
+    super.key,
     this.small = false,
   });
 
@@ -90,9 +91,9 @@ class _LabelConfig {
 /// Communicates actionability without decorative excess.
 class CSPrimaryButton extends StatefulWidget {
   const CSPrimaryButton({
-    super.key,
     required this.label,
     required this.onPressed,
+    super.key,
     this.icon,
     this.loading = false,
     this.fullWidth = true,
@@ -120,8 +121,6 @@ class _CSPrimaryButtonState extends State<CSPrimaryButton>
       vsync: this,
       duration: CSMotion.instant,
       lowerBound: 0.96,
-      upperBound: 1.0,
-      value: 1.0,
     );
     _scale = _scaleController;
   }
@@ -178,9 +177,9 @@ class _CSPrimaryButtonState extends State<CSPrimaryButton>
 /// Campus Signal — Secondary (Outlined) Button
 class CSSecondaryButton extends StatelessWidget {
   const CSSecondaryButton({
-    super.key,
     required this.label,
     required this.onPressed,
+    super.key,
     this.icon,
     this.fullWidth = true,
   });

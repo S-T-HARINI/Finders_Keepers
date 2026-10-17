@@ -3,7 +3,6 @@ import '../../../app/theme/colors.dart';
 import '../../../app/theme/spacing.dart';
 import '../../../app/theme/typography.dart';
 import '../../../core/models/item_model.dart';
-import '../../../core/widgets/cs_button.dart';
 import '../../../core/widgets/cs_card.dart';
 
 /// Explore Screen — Map / List shell
@@ -88,11 +87,11 @@ class _MapView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: CSColors.paperWhite,
                   borderRadius: BorderRadius.circular(CSSpacing.radiusLg),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: CSColors.shadow,
                       blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
@@ -102,7 +101,7 @@ class _MapView extends StatelessWidget {
                     Container(
                       width: 56,
                       height: 56,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: CSColors.signalLimeTint,
                         shape: BoxShape.circle,
                       ),
@@ -170,8 +169,8 @@ class _ListView extends StatelessWidget {
     return Column(
       children: [
         // Filter row
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
             CSSpacing.screenPadding,
             CSSpacing.md,
             CSSpacing.screenPadding,
@@ -182,15 +181,15 @@ class _ListView extends StatelessWidget {
             child: Row(
               children: [
                 _FilterChip(label: 'All', selected: true),
-                const SizedBox(width: CSSpacing.sm),
+                SizedBox(width: CSSpacing.sm),
                 _FilterChip(label: 'Lost', selected: false),
-                const SizedBox(width: CSSpacing.sm),
+                SizedBox(width: CSSpacing.sm),
                 _FilterChip(label: 'Found', selected: false),
-                const SizedBox(width: CSSpacing.sm),
+                SizedBox(width: CSSpacing.sm),
                 _FilterChip(label: 'Electronics', selected: false),
-                const SizedBox(width: CSSpacing.sm),
+                SizedBox(width: CSSpacing.sm),
                 _FilterChip(label: 'Documents', selected: false),
-                const SizedBox(width: CSSpacing.sm),
+                SizedBox(width: CSSpacing.sm),
                 _FilterChip(label: 'Accessories', selected: false),
               ],
             ),
@@ -308,9 +307,9 @@ class _FilterStrip extends StatelessWidget {
         CSSpacing.screenPadding,
         CSSpacing.lg,
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: CSColors.paperWhite,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: CSColors.graphiteHairline, width: 0.5),
         ),
       ),
